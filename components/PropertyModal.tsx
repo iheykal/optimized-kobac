@@ -87,56 +87,62 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                 onClick={toggleFullscreen}
                             >
                                 {/* Preloaded Image Stack */}
-                                {property.images.map((src, i) => (
-                                    <div
-                                        key={src + i}
-                                        style={{
-                                            position: 'absolute',
-                                            inset: 0,
-                                            opacity: i === imgIdx ? 1 : 0,
-                                            transition: 'opacity 0.2s ease',
-                                            pointerEvents: i === imgIdx ? 'auto' : 'none',
-                                        }}
-                                    >
-                                        {src.match(/\.(mp4|mov|webm)$/i) ? (
-                                            <video
-                                                src={src}
-                                                controls
-                                                autoPlay={i === imgIdx}
-                                                muted
-                                                playsInline
-                                                loop
-                                                className="w-full h-full object-contain bg-black/5 rounded-2xl sm:rounded-l-3xl p-1"
-                                                onLoadedMetadata={(e) => {
-                                                    const vid = e.currentTarget
-                                                    setImgRatios(prev => ({
-                                                        ...prev,
-                                                        [i]: { w: vid.videoWidth, h: vid.videoHeight }
-                                                    }))
-                                                }}
-                                            />
-                                        ) : (
-                                            <Image
-                                                src={src}
-                                                alt={`${property.title} – media ${i + 1}`}
-                                                fill
-                                                className="object-contain"
-                                                sizes="(max-width: 768px) 100vw, 50vw"
-                                                priority={i === 0}
-                                                quality={90}
-                                                onLoad={(e) => {
-                                                    const img = e.currentTarget as HTMLImageElement
-                                                    if (img.naturalWidth && img.naturalHeight) {
+                                {property.images.map((src, i) => {
+                                    // Optimization: Only render current, prev, and next images to save bandwidth
+                                    const isVisible = Math.abs(i - imgIdx) <= 1 || (imgIdx === 0 && i === total - 1) || (imgIdx === total - 1 && i === 0);
+                                    if (!isVisible) return null;
+
+                                    return (
+                                        <div
+                                            key={src + i}
+                                            style={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                opacity: i === imgIdx ? 1 : 0,
+                                                transition: 'opacity 0.2s ease',
+                                                pointerEvents: i === imgIdx ? 'auto' : 'none',
+                                            }}
+                                        >
+                                            {src.match(/\.(mp4|mov|webm)$/i) ? (
+                                                <video
+                                                    src={src}
+                                                    controls
+                                                    autoPlay={i === imgIdx}
+                                                    muted
+                                                    playsInline
+                                                    loop
+                                                    className="w-full h-full object-contain bg-black/5 rounded-2xl sm:rounded-l-3xl p-1"
+                                                    onLoadedMetadata={(e) => {
+                                                        const vid = e.currentTarget
                                                         setImgRatios(prev => ({
                                                             ...prev,
-                                                            [i]: { w: img.naturalWidth, h: img.naturalHeight }
+                                                            [i]: { w: vid.videoWidth, h: vid.videoHeight }
                                                         }))
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                ))}
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Image
+                                                    src={src}
+                                                    alt={`${property.title} – media ${i + 1}`}
+                                                    fill
+                                                    className="object-contain"
+                                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                                    priority={i === 0}
+                                                    quality={80}
+                                                    onLoad={(e) => {
+                                                        const img = e.currentTarget as HTMLImageElement
+                                                        if (img.naturalWidth && img.naturalHeight) {
+                                                            setImgRatios(prev => ({
+                                                                ...prev,
+                                                                [i]: { w: img.naturalWidth, h: img.naturalHeight }
+                                                            }))
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
                                 {/* Overlay UI */}
                                 {total > 1 && (
@@ -283,7 +289,7 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                     fill
                                     className="object-contain"
                                     sizes="100vw"
-                                    unoptimized
+                                    quality={85}
                                 />
                             </div>
                         ))}

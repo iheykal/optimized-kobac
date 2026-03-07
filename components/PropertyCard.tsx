@@ -20,7 +20,7 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
                 onClick={onClick}
             >
                 <div className="relative w-48 flex-shrink-0">
-                    <Image src={property.images[0]} alt={property.title} fill className="object-cover" loading="lazy" sizes="192px" unoptimized />
+                    <Image src={property.images[0]} alt={property.title} fill className="object-cover" loading="lazy" sizes="192px" />
                 </div>
                 <div className="p-4 flex flex-col justify-between flex-1">
                     <div>
@@ -82,7 +82,6 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
                         loading={index < 4 ? 'eager' : 'lazy'}
                         priority={index < 4}
                         sizes="(max-width: 640px) 50vw, (max-width: 1200px) 50vw, 33vw"
-                        unoptimized
                     />
                 )}
             </div>
