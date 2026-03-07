@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { X, ChevronLeft, ChevronRight, MapPin, Calendar, Maximize2 } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, MapPin, Calendar, Maximize2, RefreshCw } from 'lucide-react'
 import { Property } from '@/lib/types'
 import AgentCard from './AgentCard'
 
@@ -121,24 +121,29 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                                     }}
                                                 />
                                             ) : (
-                                                <Image
-                                                    src={src}
-                                                    alt={`${property.title} – media ${i + 1}`}
-                                                    fill
-                                                    className="object-contain"
-                                                    sizes="(max-width: 768px) 100vw, 50vw"
-                                                    priority={i === 0}
-                                                    quality={80}
-                                                    onLoad={(e) => {
-                                                        const img = e.currentTarget as HTMLImageElement
-                                                        if (img.naturalWidth && img.naturalHeight) {
-                                                            setImgRatios(prev => ({
-                                                                ...prev,
-                                                                [i]: { w: img.naturalWidth, h: img.naturalHeight }
-                                                            }))
-                                                        }
-                                                    }}
-                                                />
+                                                <>
+                                                    <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                                                        <RefreshCw className="w-6 h-6 text-gray-300 animate-spin" />
+                                                    </div>
+                                                    <Image
+                                                        src={src}
+                                                        alt={`${property.title} – media ${i + 1}`}
+                                                        fill
+                                                        className="object-contain relative z-10"
+                                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                                        priority={i === 0}
+                                                        quality={80}
+                                                        onLoad={(e) => {
+                                                            const img = e.currentTarget as HTMLImageElement
+                                                            if (img.naturalWidth && img.naturalHeight) {
+                                                                setImgRatios(prev => ({
+                                                                    ...prev,
+                                                                    [i]: { w: img.naturalWidth, h: img.naturalHeight }
+                                                                }))
+                                                            }
+                                                        }}
+                                                    />
+                                                </>
                                             )}
                                         </div>
                                     );
@@ -266,33 +271,39 @@ export default function PropertyModal({ property, onClose }: { property: Propert
 
                     {/* Fullscreen Image Stack — always fits screen, respects ratio */}
                     <div className="relative w-full h-full max-w-7xl mx-auto flex items-center justify-center p-2 sm:p-10 pb-24 sm:pb-20">
-                        {property.images.map((src, i) => (
-                            <div
-                                key={"fs" + src + i}
-                                style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    opacity: i === imgIdx ? 1 : 0,
-                                    transition: 'opacity 0.25s ease, transform 0.25s ease',
-                                    transform: i === imgIdx ? 'scale(1)' : 'scale(0.97)',
-                                    pointerEvents: i === imgIdx ? 'auto' : 'none',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: '16px',
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <Image
-                                    src={src}
-                                    alt={`Fullscreen image ${i + 1}`}
-                                    fill
-                                    className="object-contain"
-                                    sizes="100vw"
-                                    quality={85}
-                                />
-                            </div>
-                        ))}
+                        {property.images.map((src, i) => {
+                            // Fullscreen virtualization: only render current and neighbors
+                            const isVisible = Math.abs(i - imgIdx) <= 1 || (imgIdx === 0 && i === total - 1) || (imgIdx === total - 1 && i === 0);
+                            if (!isVisible) return null;
+
+                            return (
+                                <div
+                                    key={"fs" + src + i}
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        opacity: i === imgIdx ? 1 : 0,
+                                        transition: 'opacity 0.25s ease, transform 0.25s ease',
+                                        transform: i === imgIdx ? 'scale(1)' : 'scale(0.97)',
+                                        pointerEvents: i === imgIdx ? 'auto' : 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '16px',
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Image
+                                        src={src}
+                                        alt={`Fullscreen image ${i + 1}`}
+                                        fill
+                                        className="object-contain"
+                                        sizes="100vw"
+                                        quality={85}
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Navigation Arrows */}
@@ -326,7 +337,7 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                         onClick={() => setImgIdx(i)}
                                         className={`relative w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${i === imgIdx ? 'border-blue-500 scale-105 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'}`}
                                     >
-                                        <Image src={src} alt="thumb" fill className="object-cover" sizes="64px" />
+                                        <Image src={src} alt="thumb" fill className="object-cover" sizes="64px" unoptimized />
                                     </button>
                                 ))}
                             </div>

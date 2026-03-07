@@ -8,7 +8,9 @@ import ScrollToTop from '@/components/ScrollToTop'
 
 const R2_BASE = process.env.R2_PUBLIC_BASE_URL || ''
 
-export const dynamic = 'force-dynamic'
+// Revalidate every 5 minutes (300 seconds) for near-instant loads
+export const revalidate = 300
+// export const dynamic = 'force-dynamic' // Removed to allow caching
 
 function resolveImage(img: string) {
   if (!img) return ''
@@ -24,7 +26,7 @@ async function getProperties(): Promise<Property[]> {
     const raw = await PropertyModel
       .find({})
       .sort({ listedAt: -1, createdAt: -1 })
-      .limit(500)
+      .limit(120)
       .lean()
       .exec()
 

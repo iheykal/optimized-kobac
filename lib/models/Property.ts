@@ -32,6 +32,10 @@ const PropertySchema = new Schema<IProperty>(
     }
 )
 
+// Index for fast sorting by newest first
+PropertySchema.index({ listedAt: -1, createdAt: -1 })
+PropertySchema.index({ district: 1 }) // For faster filtering by location if added later
+
 const PropertyModel: Model<IProperty> =
     models.Property || mongoose.model<IProperty>('Property', PropertySchema)
 
