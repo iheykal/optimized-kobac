@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { LayoutGrid, List, RefreshCw, Filter, MapPin } from 'lucide-react'
 import { Property, PropertyType } from '@/lib/types'
+import { trackEvent } from '@/lib/analytics'
 import PropertyCard from './PropertyCard'
 import PropertyModal from './PropertyModal'
 
@@ -55,13 +56,29 @@ export default function PropertyGrid({ properties }: { properties: Property[] })
             {/* Filter bar */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 mb-4 flex flex-wrap items-center gap-4">
                 <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border-0 outline-none bg-transparent text-gray-700 text-sm font-medium cursor-pointer pr-2">
+                <select
+                    value={filterType}
+                    onChange={e => {
+                        const val = e.target.value
+                        setFilterType(val)
+                        if (val) trackEvent('search', { metadata: { type: val } })
+                    }}
+                    className="border-0 outline-none bg-transparent text-gray-700 text-sm font-medium cursor-pointer pr-2"
+                >
                     <option value="">All Types</option>
                     {types.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <div className="w-px h-5 bg-gray-200" />
                 <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} className="border-0 outline-none bg-transparent text-gray-700 text-sm font-medium cursor-pointer pr-2">
+                <select
+                    value={filterDistrict}
+                    onChange={e => {
+                        const val = e.target.value
+                        setFilterDistrict(val)
+                        if (val) trackEvent('search', { district: val })
+                    }}
+                    className="border-0 outline-none bg-transparent text-gray-700 text-sm font-medium cursor-pointer pr-2"
+                >
                     <option value="">All Districts</option>
                     {districts.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>

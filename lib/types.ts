@@ -11,6 +11,7 @@ export interface Agent {
 
 export interface Property {
     id: string          // MongoDB ObjectId as string
+    _id?: string        // Fallback for MongoDB direct documents
     title: string
     type: PropertyType
     district: string

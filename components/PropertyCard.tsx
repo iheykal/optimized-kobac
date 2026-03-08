@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import { MapPin } from 'lucide-react'
 import { Property } from '@/lib/types'
+import { trackEvent } from '@/lib/analytics'
+
 
 interface PropertyCardProps {
     property: Property
@@ -17,10 +19,17 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
             <div
                 className="property-card card-appear bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer flex overflow-hidden"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={onClick}
+                onClick={() => {
+                    trackEvent('property_click', {
+                        propertyId: property.id || property._id,
+                        district: property.district,
+                        price: property.price
+                    })
+                    onClick()
+                }}
             >
                 <div className="relative w-48 flex-shrink-0">
-                    <Image src={property.images[0]} alt={property.title} fill className="object-cover" loading="lazy" sizes="192px" />
+                    <Image src={property.images[0]} alt={property.title} fill className="object-cover" loading="lazy" sizes="192px" unoptimized={true} />
                 </div>
                 <div className="p-4 flex flex-col justify-between flex-1">
                     <div>
@@ -60,7 +69,14 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
         <div
             className="property-card card-appear bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer overflow-hidden"
             style={{ animationDelay: `${index * 60}ms` }}
-            onClick={onClick}
+            onClick={() => {
+                trackEvent('property_click', {
+                    propertyId: property.id || property._id,
+                    district: property.district,
+                    price: property.price
+                })
+                onClick()
+            }}
         >
             {/* Property image — no ID badge */}
             <div className="relative h-32 sm:h-48 bg-gray-100">
@@ -82,6 +98,7 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
                         loading={index < 4 ? 'eager' : 'lazy'}
                         priority={index < 4}
                         sizes="(max-width: 640px) 50vw, (max-width: 1200px) 50vw, 33vw"
+                        unoptimized={true}
                     />
                 )}
             </div>

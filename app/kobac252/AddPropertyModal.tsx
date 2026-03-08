@@ -21,7 +21,7 @@ function parseSmartPaste(text: string) {
     if (bathMatch) data.bathrooms = bathMatch[1]
 
     // Type
-    if (t.includes('villa') || t.includes('villo')) data.propertyType = 'Villa'
+    if (t.includes('villa') || t.includes('villo')) data.propertyType = 'Villo'
     if (t.includes('apartment') || t.includes('dabaq')) data.propertyType = 'Apartment'
     if (t.includes('office')) data.propertyType = 'Office'
     if (t.includes('shop') || t.includes('dukaan')) data.propertyType = 'Shop'
@@ -39,7 +39,7 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
 
     // Form fields
     const [formData, setFormData] = useState({
-        propertyType: 'Villa',
+        propertyType: 'Villo',
         listingType: 'sale',
         sharciga: '',
         length: '',
@@ -70,14 +70,20 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
         try {
             const data = new FormData()
             data.append('password', password)
-            data.append('title', `${formData.propertyType} ${formData.listingType === 'sale' ? 'Iib' : 'Kiro'} ah`)
+            data.append('title', `${formData.propertyType} ${formData.listingType === 'sale' ? 'iib' : 'kiro'} ah`)
             data.append('propertyType', formData.propertyType)
             data.append('listingType', formData.listingType)
-            data.append('sharciga', formData.sharciga)
 
-            // Format measurement as "length x width"
-            if (formData.length || formData.width) {
-                data.append('measurement', `${formData.length} x ${formData.width}`)
+            if (formData.listingType === 'sale') {
+                data.append('sharciga', formData.sharciga)
+                // Format measurement as "length x width"
+                if (formData.length || formData.width) {
+                    data.append('measurement', `${formData.length} x ${formData.width}`)
+                }
+            } else {
+                // If it's rent, measurement and sharciga shouldn't be required or added
+                data.append('sharciga', '')
+                data.append('measurement', '')
             }
 
             data.append('price', formData.price)
@@ -115,9 +121,9 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl my-8">
-                <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900">Add New Property</h2>
                         <p className="text-gray-500 text-sm">Create a new property listing for your portfolio</p>
@@ -127,7 +133,7 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
 
                     {/* Smart Paste */}
                     <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-5">
@@ -161,7 +167,7 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                                 onChange={e => setFormData({ ...formData, propertyType: e.target.value })}
                                 className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                <option value="Villa">Villa</option>
+                                <option value="Villo">Villo</option>
                                 <option value="Apartment">Apartment</option>
                                 <option value="Office">Office</option>
                                 <option value="Shop">Shop</option>
@@ -183,44 +189,48 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                         </div>
 
                         {/* Sharciga */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Sharciga (Document Type)</label>
-                            <select
-                                value={formData.sharciga}
-                                onChange={e => setFormData({ ...formData, sharciga: e.target.value })}
-                                className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">Select document type</option>
-                                <option value="Siyaad Barre">Siyaad Barre</option>
-                                <option value="Koofi">Koofi</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
+                        {formData.listingType === 'sale' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Sharciga (Document Type)</label>
+                                <select
+                                    value={formData.sharciga}
+                                    onChange={e => setFormData({ ...formData, sharciga: e.target.value })}
+                                    className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Select document type</option>
+                                    <option value="Siyaad Barre">Siyaad Barre</option>
+                                    <option value="Koofi">Koofi</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        )}
 
                         {/* Cabirka */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Cabirka (Measurement) *</label>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="number"
-                                    placeholder="20"
-                                    required
-                                    value={formData.length}
-                                    onChange={e => setFormData({ ...formData, length: e.target.value })}
-                                    className="w-full border border-gray-200 rounded-xl p-3 text-center outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <span className="text-gray-400 font-medium">×</span>
-                                <input
-                                    type="number"
-                                    placeholder="20"
-                                    required
-                                    value={formData.width}
-                                    onChange={e => setFormData({ ...formData, width: e.target.value })}
-                                    className="w-full border border-gray-200 rounded-xl p-3 text-center outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+                        {formData.listingType === 'sale' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Cabirka (Measurement) *</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        placeholder="20"
+                                        required
+                                        value={formData.length}
+                                        onChange={e => setFormData({ ...formData, length: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-3 text-center outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <span className="text-gray-400 font-medium">×</span>
+                                    <input
+                                        type="number"
+                                        placeholder="20"
+                                        required
+                                        value={formData.width}
+                                        onChange={e => setFormData({ ...formData, width: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-3 text-center outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1.5">Enter length and width measurements (e.g., 20 × 20)</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1.5">Enter length and width measurements (e.g., 20 × 20)</p>
-                        </div>
+                        )}
 
                         {/* Price */}
                         <div>
@@ -363,7 +373,7 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                         </div>
                     </div>
 
-                    <div className="border-t border-gray-100 pt-6 flex justify-end gap-3">
+                    <div className="border-t border-gray-100 pt-6 mt-6 pb-2 flex justify-end gap-3 sticky bottom-0 bg-white z-10">
                         <button
                             type="button"
                             onClick={onClose}

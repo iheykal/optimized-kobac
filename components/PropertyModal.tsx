@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { X, ChevronLeft, ChevronRight, MapPin, Calendar, Maximize2, RefreshCw } from 'lucide-react'
 import { Property } from '@/lib/types'
+import { trackEvent } from '@/lib/analytics'
 import AgentCard from './AgentCard'
 
 export default function PropertyModal({ property, onClose }: { property: Property; onClose: () => void }) {
@@ -18,10 +19,26 @@ export default function PropertyModal({ property, onClose }: { property: Propert
         setImgIdx(0)
         setIsFullscreen(false)
         setImgRatios({})
-    }, [property.id])
 
-    const prev = useCallback((e?: React.MouseEvent) => { e?.stopPropagation(); setImgIdx(i => (i - 1 + total) % total) }, [total])
-    const next = useCallback((e?: React.MouseEvent) => { e?.stopPropagation(); setImgIdx(i => (i + 1) % total) }, [total])
+        // Track modal view
+        trackEvent('page_view', {
+            propertyId: property.id || property._id,
+            district: property.district,
+            price: property.price
+        })
+    }, [property.id, property._id, property.district, property.price])
+
+    const prev = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        setImgIdx(i => (i - 1 + total) % total)
+        trackEvent('gallery_view', { propertyId: property.id || property._id })
+    }, [total, property.id, property._id])
+
+    const next = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        setImgIdx(i => (i + 1) % total)
+        trackEvent('gallery_view', { propertyId: property.id || property._id })
+    }, [total, property.id, property._id])
     const toggleFullscreen = useCallback((e?: React.MouseEvent) => { e?.stopPropagation(); setIsFullscreen(v => !v) }, [])
 
     useEffect(() => {
@@ -133,6 +150,7 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                                         sizes="(max-width: 768px) 100vw, 50vw"
                                                         priority={i === 0}
                                                         quality={80}
+                                                        unoptimized={true}
                                                         onLoad={(e) => {
                                                             const img = e.currentTarget as HTMLImageElement
                                                             if (img.naturalWidth && img.naturalHeight) {
@@ -300,6 +318,7 @@ export default function PropertyModal({ property, onClose }: { property: Propert
                                         className="object-contain"
                                         sizes="100vw"
                                         quality={85}
+                                        unoptimized={true}
                                     />
                                 </div>
                             );
