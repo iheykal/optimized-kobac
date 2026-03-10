@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { MapPin } from 'lucide-react'
 import { Property } from '@/lib/types'
 import { trackEvent } from '@/lib/analytics'
@@ -9,23 +10,39 @@ import { trackEvent } from '@/lib/analytics'
 interface PropertyCardProps {
     property: Property
     viewMode: 'grid' | 'list'
-    onClick: () => void
+    onClick?: () => void
     index?: number
 }
 
 export default function PropertyCard({ property, viewMode, onClick, index = 0 }: PropertyCardProps) {
+    const propertyId = property.id || property._id;
+
+    // Generate SEO friendly slug - use seqId for clean human-readable URLs
+    const propertyType = (property.type || 'property').toLowerCase().replace(/\s+/g, '-');
+    const district = (property.district || 'mogadishu').toLowerCase().replace(/\s+/g, '-');
+    const listingType = (property.listingType || 'rent').toLowerCase() === 'sale' ? 'iib-ah' : 'kiro-ah';
+    const idSegment = property.seqId ? `KOB-${property.seqId}` : propertyId
+    const slug = `${propertyType}-${listingType}-${district}-${idSegment}`;
+    const propertyUrl = `/p/${slug}`;
+
     if (viewMode === 'list') {
         return (
-            <div
-                className="property-card card-appear bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer flex overflow-hidden"
+            <Link
+                href={propertyUrl}
+                className="property-card card-appear bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer flex overflow-hidden block"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => {
-                    trackEvent('property_click', {
-                        propertyId: property.id || property._id,
-                        district: property.district,
-                        price: property.price
-                    })
-                    onClick()
+                onClick={(e) => {
+                    // Prevent default to allow the modal to open on the current page instead of full navigation
+                    // ONLY if onClick is provided (e.g., from PropertyGrid)
+                    if (onClick) {
+                        e.preventDefault();
+                        trackEvent('property_click', {
+                            propertyId,
+                            district: property.district,
+                            price: property.price
+                        })
+                        onClick()
+                    }
                 }}
             >
                 <div className="relative w-48 flex-shrink-0">
@@ -60,22 +77,26 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
                         </div>
                     </div>
                 </div>
-            </div>
+            </Link>
         )
     }
 
     // Grid card
     return (
-        <div
-            className="property-card card-appear bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer overflow-hidden"
+        <Link
+            href={propertyUrl}
+            className="property-card card-appear bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer overflow-hidden block"
             style={{ animationDelay: `${index * 60}ms` }}
-            onClick={() => {
-                trackEvent('property_click', {
-                    propertyId: property.id || property._id,
-                    district: property.district,
-                    price: property.price
-                })
-                onClick()
+            onClick={(e) => {
+                if (onClick) {
+                    e.preventDefault();
+                    trackEvent('property_click', {
+                        propertyId,
+                        district: property.district,
+                        price: property.price
+                    })
+                    onClick()
+                }
             }}
         >
             {/* Property image — no ID badge */}
@@ -147,6 +168,6 @@ export default function PropertyCard({ property, viewMode, onClick, index = 0 }:
                     </div>
                 </div>
             </div>
-        </div>
+        </Link>
     )
 }

@@ -21,7 +21,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/icons/klogo.png" alt="Kobac Real Estate Logo" className="w-full h-full object-cover" />
+                        <img src="/icons/klogo.png" alt="Kobac Property Logo" className="w-full h-full object-cover" />
                     </div>
                     <div>
                         <div className="flex items-center gap-1">

@@ -34,13 +34,19 @@ export default function AdminPage() {
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
                             <input
-                                type="password"
+                                type="tel"
+                                pattern="[0-9]*"
+                                inputMode="numeric"
                                 value={password}
-                                onChange={e => { setPassword(e.target.value); setError(false) }}
-                                placeholder="Enter password"
-                                className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors text-center text-lg tracking-widest ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}`}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setPassword(val);
+                                    setError(false);
+                                }}
+                                placeholder="Enter admin code"
+                                className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors text-center text-lg tracking-widest font-mono ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}`}
                             />
-                            {error && <p className="text-red-500 text-sm mt-2 font-medium animate-in fade-in slide-in-from-top-1">Incorrect password</p>}
+                            {error && <p className="text-red-500 text-sm mt-2 font-medium animate-in fade-in slide-in-from-top-1">Incorrect admin code</p>}
                         </div>
                         <button
                             type="submit"

@@ -31,6 +31,10 @@ export async function GET(
             return NextResponse.json({ error: 'Property not found' }, { status: 404 })
         }
 
+        const agentPhone = p.agent?.phone || '061 025 1014';
+        const isDefaultAgent = agentPhone.replace(/\s+/g, '') === '0610251014' || agentPhone === '+252610251014';
+        const agentName = isDefaultAgent ? 'Kobac Property' : (p.agent?.name || 'Kobac Property');
+
         const data = {
             id: (p._id as { toString(): string }).toString(),
             title: p.title,
@@ -46,8 +50,8 @@ export async function GET(
             bathrooms: Number((p as any).bathrooms || (p as any).baths || (p as any).suuli || (p as any).wc || (p as any).numberOfBathrooms || 0),
             images: (p.images || []).map(resolveImage).filter(Boolean),
             agent: {
-                name: p.agent?.name || 'Kobac Real Estate',
-                phone: p.agent?.phone || '061 025 1014',
+                name: agentName,
+                phone: agentPhone,
                 location: p.agent?.location || 'Mogadishu - Somalia',
                 verified: p.agent?.verified ?? true,
             },

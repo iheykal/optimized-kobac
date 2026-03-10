@@ -2,7 +2,7 @@ import { Agent, Property } from './types';
 
 const kobacAgent: Agent = {
     id: 'kobac',
-    name: 'Kobac Real Estate',
+    name: 'Kobac Property',
     phone: '061 025 1014',
     location: 'Mogadishu - Somalia',
     verified: true,

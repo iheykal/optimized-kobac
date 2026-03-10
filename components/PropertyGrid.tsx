@@ -1,13 +1,25 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { LayoutGrid, List, RefreshCw, Filter, MapPin } from 'lucide-react'
 import { Property, PropertyType } from '@/lib/types'
 import { trackEvent } from '@/lib/analytics'
 import PropertyCard from './PropertyCard'
 import PropertyModal from './PropertyModal'
 
+// Generates the SEO slug for a property (must match PropertyCard logic)
+function makePropertySlug(p: Property) {
+    const type = (p.type || 'property').toLowerCase().replace(/\s+/g, '-')
+    const district = (p.district || 'mogadishu').toLowerCase().replace(/\s+/g, '-')
+    const listingType = (p.listingType || 'rent').toLowerCase() === 'sale' ? 'iib-ah' : 'kiro-ah'
+    // Use seqId for clean URLs (e.g. KOB-20), fallback to full MongoDB id
+    const idSegment = p.seqId ? `KOB-${p.seqId}` : (p.id || p._id)
+    return `/p/${type}-${listingType}-${district}-${idSegment}`
+}
+
 export default function PropertyGrid({ properties }: { properties: Property[] }) {
+    const router = useRouter()
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [filterType, setFilterType] = useState('')
     const [filterDistrict, setFilterDistrict] = useState('')
@@ -29,13 +41,34 @@ export default function PropertyGrid({ properties }: { properties: Property[] })
 
     const refresh = () => { setFilterType(''); setFilterDistrict(''); setKey(k => k + 1) }
 
+    // When a property is selected, push the /p/[slug] URL so it's shareable
+    const openProperty = useCallback((p: Property) => {
+        setSelected(p)
+        const url = makePropertySlug(p)
+        // Silently update the URL bar without a page reload
+        window.history.pushState({ propertyId: p.id || p._id }, '', url)
+    }, [])
+
+    // When modal closes, restore the homepage URL
+    const closeProperty = useCallback(() => {
+        setSelected(null)
+        window.history.pushState({}, '', '/')
+    }, [])
+
+    // Handle browser Back button — if user presses Back while modal is open, just close modal
+    useEffect(() => {
+        const onPop = () => { setSelected(null) }
+        window.addEventListener('popstate', onPop)
+        return () => window.removeEventListener('popstate', onPop)
+    }, [])
+
     return (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Section heading */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                 <div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Featured Properties</h2>
-                    <p className="text-green-600 text-sm mt-0.5">Discover our curated selection of premium properties</p>
+                    <p className="text-green-600 text-sm mt-0.5">Halkaan kadhex raadi guryaha xulka ah ee aan soo galinnay</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <button onClick={refresh} className="flex items-center gap-1.5 border border-green-500 text-green-600 hover:bg-green-50 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
@@ -85,7 +118,7 @@ export default function PropertyGrid({ properties }: { properties: Property[] })
             </div>
 
             {/* Count */}
-            <p className="text-sm text-gray-500 mb-4 font-medium">{filtered.length} properties</p>
+
 
             {/* Cards */}
             <div key={key} className={viewMode === 'grid' ? 'grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5' : 'flex flex-col gap-4'}>
@@ -101,12 +134,12 @@ export default function PropertyGrid({ properties }: { properties: Property[] })
                     </div>
                 ) : (
                     filtered.map((p, i) => (
-                        <PropertyCard key={p.id} property={p} viewMode={viewMode} index={i} onClick={() => setSelected(p)} />
+                        <PropertyCard key={p.id} property={p} viewMode={viewMode} index={i} onClick={() => openProperty(p)} />
                     ))
                 )}
             </div>
 
-            {selected && <PropertyModal property={selected} onClose={() => setSelected(null)} />}
+            {selected && <PropertyModal property={selected} onClose={closeProperty} />}
         </section>
     )
 }

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
             // Default agent data
             agent: {
-                name: 'Kobac Real Estate',
+                name: 'Kobac Property',
                 phone: '+252610251014',
                 location: 'Mogadishu - Somalia',
                 verified: true

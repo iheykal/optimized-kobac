@@ -1,10 +1,11 @@
 import { getDashboardStats } from '@/lib/dashboardData'
 import { Flame, TrendingUp, Users, Eye, Target, MapPin, CalendarCheck } from 'lucide-react'
 import Link from 'next/link'
-
+import CEONotebook from '@/components/CEONotebook'
 
 // Quick server-side fetch on this page so it's always up to date
 // without client-side loading spinners.
+export const dynamic = 'force-dynamic';
 
 export default async function TaskDashboard() {
     const stats = await getDashboardStats()
@@ -211,6 +212,9 @@ export default async function TaskDashboard() {
                         </div>
                         <p className="text-xs text-center text-gray-400 mt-6 font-medium">Use this data to tell your brokers what houses to find.</p>
                     </div>
+
+                    {/* CEO NOTEBOOK */}
+                    <CEONotebook />
                 </div>
             </div>
         </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, ClipboardPaste, Info } from 'lucide-react'
+import { X, ClipboardPaste, Info, CheckCircle2 } from 'lucide-react'
 
 // Simple helper to guess fields from pasted text
 function parseSmartPaste(text: string) {
@@ -35,6 +35,7 @@ function parseSmartPaste(text: string) {
 
 export default function AddPropertyModal({ onClose, password }: { onClose: () => void, password: string }) {
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showSuccess, setShowSuccess] = useState(false)
     const [pasteText, setPasteText] = useState('')
 
     // Form fields
@@ -106,8 +107,11 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
             })
 
             if (res.ok) {
-                alert('Property uploaded successfully!')
-                onClose()
+                setShowSuccess(true)
+                setTimeout(() => {
+                    setShowSuccess(false)
+                    onClose()
+                }, 2000)
             } else {
                 const err = await res.json()
                 alert(`Error: ${err.error || 'Failed to upload'}`)
@@ -133,7 +137,20 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
+                {/* Success Overlay */}
+                {showSuccess && (
+                    <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center rounded-2xl backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                            <CheckCircle2 className="w-12 h-12 text-green-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Upload Successful!</h3>
+                        <p className="text-gray-500 text-center max-w-sm">
+                            The property has been successfully added to your portfolio.
+                        </p>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto relative">
 
                     {/* Smart Paste */}
                     <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-5">

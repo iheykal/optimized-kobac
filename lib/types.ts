@@ -12,6 +12,7 @@ export interface Agent {
 export interface Property {
     id: string          // MongoDB ObjectId as string
     _id?: string        // Fallback for MongoDB direct documents
+    seqId?: number      // Sequential display number (1, 2, 3...) for clean URLs
     title: string
     type: PropertyType
     district: string

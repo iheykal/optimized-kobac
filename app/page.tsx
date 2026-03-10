@@ -32,15 +32,23 @@ async function getProperties(): Promise<Property[]> {
 
     console.log(`[HomePage] Found ${raw.length} properties in MongoDB`)
 
-    return raw.map((p) => {
+    return raw.map((p, idx) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const doc = p as any
       const images: string[] = (doc.images || doc.photos || [])
         .map((img: string) => resolveImage(img))
         .filter(Boolean)
 
+      const agentPhone = doc.agent?.phone || doc.agentPhone || '061 025 1014';
+      const isDefaultAgent = agentPhone.replace(/\s+/g, '') === '0610251014' || agentPhone === '+252610251014';
+      const agentName = isDefaultAgent ? 'Kobac Property' : (doc.agent?.name || doc.agentName || 'Kobac Property');
+
+      // seqId: since sorted newest-first, oldest property = seqId 1, newest = total count
+      const seqId = raw.length - idx
+
       return {
         id: doc._id?.toString() || String(doc.id || ''),
+        seqId,
         title: doc.title || doc.name || 'Untitled',
         type: doc.type || doc.propertyType || 'Apartment',
         district: doc.district || doc.area || doc.location || '',
@@ -52,8 +60,8 @@ async function getProperties(): Promise<Property[]> {
         bathrooms: Number(doc.bathrooms || doc.baths || doc.suuli || doc.wc || doc.numberOfBathrooms || 0),
         images,
         agent: {
-          name: doc.agent?.name || doc.agentName || 'Kobac Real Estate',
-          phone: doc.agent?.phone || doc.agentPhone || '061 025 1014',
+          name: agentName,
+          phone: agentPhone,
           location: doc.agent?.location || 'Mogadishu - Somalia',
           verified: doc.agent?.verified ?? true,
         },

@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { X, ChevronLeft, ChevronRight, MapPin, Calendar, Maximize2, RefreshCw } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Calendar, Maximize2, RefreshCw, Share2, Link, Check } from 'lucide-react'
 import { Property } from '@/lib/types'
 import { trackEvent } from '@/lib/analytics'
 import AgentCard from './AgentCard'
 
-export default function PropertyModal({ property, onClose }: { property: Property; onClose: () => void }) {
+export default function PropertyModal({ property, onClose, isStandalonePage = false }: { property: Property; onClose: () => void; isStandalonePage?: boolean }) {
     const [imgIdx, setImgIdx] = useState(0)
     const [isFullscreen, setIsFullscreen] = useState(false)
+    const [showShare, setShowShare] = useState(false)
+    const [copied, setCopied] = useState(false)
     // Store per-image aspect ratios {width, height} once each image loads
     const [imgRatios, setImgRatios] = useState<Record<number, { w: number; h: number }>>({})
     const total = property.images.length
@@ -51,9 +53,17 @@ export default function PropertyModal({ property, onClose }: { property: Propert
             if (e.key === 'ArrowRight') next()
         }
         document.addEventListener('keydown', handler)
-        document.body.style.overflow = 'hidden'
-        return () => { document.removeEventListener('keydown', handler); document.body.style.overflow = '' }
-    }, [onClose, prev, next, isFullscreen])
+        // Only lock scroll when used as a popup modal (not on standalone page)
+        if (!isStandalonePage) {
+            document.body.style.overflow = 'hidden'
+        }
+        return () => {
+            document.removeEventListener('keydown', handler)
+            if (!isStandalonePage) {
+                document.body.style.overflow = ''
+            }
+        }
+    }, [onClose, prev, next, isFullscreen, isStandalonePage])
 
     const listedDate = new Date(property.listedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -64,30 +74,36 @@ export default function PropertyModal({ property, onClose }: { property: Propert
 
     // For portrait images (taller than wide), we want a taller box.
     // We always fill the available width, then set height via paddingBottom trick.
-    // Cap height at max 70vh so it never overflows the modal.
-    const paddingBottom = `min(${(1 / aspectRatio) * 100}%, 70vh)`
+    // On standalone page: use full natural aspect ratio (no height cap)
+    // In modal: cap height at max 70vh so it never overflows the popup.
+    const paddingBottom = isStandalonePage
+        ? `${(1 / aspectRatio) * 100}%`
+        : `min(${(1 / aspectRatio) * 100}%, 70vh)`
 
     return (
         <>
-            {/* Main Modal */}
+            {/* Main Modal or Standalone Container */}
             <div
-                className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-                onClick={onClose}
+                className={isStandalonePage ? `w-full transition-opacity ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}` : `fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                onClick={isStandalonePage ? undefined : onClose}
             >
                 <div
-                    className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"
+                    className={isStandalonePage ? "bg-white w-full flex flex-col" : "bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"}
                     onClick={e => e.stopPropagation()}
                 >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-20">
-                        <h2 className="font-bold text-gray-900 text-lg">Property Details</h2>
-                        <button
-                            onClick={onClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+                    {/* Header — hidden on standalone page since they have the browser back button */}
+                    {!isStandalonePage && (
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-20">
+                            <h2 className="font-bold text-gray-900 text-lg">Property Details</h2>
+                            <button
+                                onClick={onClose}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 transition-colors text-red-500 hover:text-red-700 border border-red-200"
+                                title="Close"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
 
                     <div className="flex flex-col md:flex-row flex-1">
                         {/* Left: Image carousel — aspect-ratio adapts per image */}
@@ -211,26 +227,85 @@ export default function PropertyModal({ property, onClose }: { property: Propert
 
                         {/* Right: Details */}
                         <div className="flex-1 p-4 pt-2 md:pt-4">
+                            {/* Type + District badge row — very prominent */}
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                                <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                    {property.type}
+                                </span>
+                                <span className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full border border-green-200">
+                                    📍 {property.district} · Mogadishu
+                                </span>
+                            </div>
+
                             <h3 className="text-blue-600 font-bold text-2xl sm:text-3xl mb-1">{property.title}</h3>
                             <p className="text-green-600 font-bold text-2xl sm:text-3xl mb-4">
-                                ${property.price}<span className="text-gray-400 font-normal text-sm ml-1">/{property.priceUnit}</span>
+                                ${property.price.toLocaleString()}<span className="text-gray-400 font-normal text-sm ml-1">/{property.priceUnit}</span>
                             </p>
 
                             <div className="flex flex-col gap-2 mb-4">
-                                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg w-fit">
-                                    <MapPin className="w-4 h-4 text-green-600" />
-                                    <span className="text-sm font-medium">{property.district}</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg w-fit">
-                                    <MapPin className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm font-medium">{property.landmark}</span>
-                                </div>
+                                {property.landmark ? (
+                                    <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg w-fit">
+                                        <span className="text-sm font-medium">📍 {property.landmark}</span>
+                                    </div>
+                                ) : null}
                             </div>
 
-                            <div className="flex flex-wrap gap-2 mb-5">
+                            <div className="flex flex-wrap items-center gap-2 mb-5">
                                 <span className="bg-amber-50 text-amber-700 text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5">
                                     <Calendar className="w-3.5 h-3.5" />Lasoo dhigay {listedDate}
                                 </span>
+
+                                {/* SHARE BUTTON */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowShare(v => !v)}
+                                        className="flex items-center gap-1.5 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full hover:bg-gray-700 transition-colors"
+                                    >
+                                        <Share2 className="w-3.5 h-3.5" /> Share
+                                    </button>
+
+                                    {/* Share popup */}
+                                    {showShare && (() => {
+                                        const propertyId = property.id || property._id
+                                        const type = (property.type || 'property').toLowerCase().replace(/\s+/g, '-')
+                                        const district = (property.district || 'mogadishu').toLowerCase().replace(/\s+/g, '-')
+                                        const listingType = (property.listingType || 'rent') === 'sale' ? 'iib-ah' : 'kiro-ah'
+                                        const shareUrl = typeof window !== 'undefined'
+                                            ? `${window.location.origin}/p/${type}-${listingType}-${district}-${propertyId}`
+                                            : ''
+                                        const waText = encodeURIComponent(`🏠 *${property.title}*\n📍 ${property.district}, Mogadishu\n💰 $${property.price.toLocaleString()} / ${property.priceUnit}\n\nView full details: ${shareUrl}`)
+
+                                        return (
+                                            <div className="absolute left-0 top-8 bg-white border border-gray-200 rounded-2xl shadow-2xl p-3 z-50 w-52 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider px-1">Share this property</p>
+
+                                                {/* WhatsApp */}
+                                                <a
+                                                    href={`https://wa.me/?text=${waText}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2.5 bg-green-50 hover:bg-green-100 text-green-700 font-semibold text-sm px-3 py-2.5 rounded-xl transition-colors"
+                                                >
+                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-green-600" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.554 4.122 1.523 5.855L.057 23.882l6.191-1.623A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.007-1.374l-.36-.214-3.727.977.997-3.645-.234-.374A9.818 9.818 0 112 12c0 5.414 4.404 9.818 9.818 9.818z" /></svg>
+                                                    WhatsApp
+                                                </a>
+
+                                                {/* Copy Link */}
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(shareUrl)
+                                                        setCopied(true)
+                                                        setTimeout(() => { setCopied(false); setShowShare(false) }, 1800)
+                                                    }}
+                                                    className="flex items-center gap-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-sm px-3 py-2.5 rounded-xl transition-colors"
+                                                >
+                                                    {copied ? <Check className="w-5 h-5 text-green-600" /> : <Link className="w-5 h-5" />}
+                                                    {copied ? 'Copied!' : 'Copy Link'}
+                                                </button>
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
                             </div>
 
                             {/* Stats */}
