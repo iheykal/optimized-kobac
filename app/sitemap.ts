@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import { connectToDatabase } from '@/lib/mongoose'
 import PropertyModel from '@/lib/models/Property'
 
-const BASE_URL = 'https://kobacproperty.com'
+const BASE_URL = 'https://kobac.net'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Base routes that are always present
