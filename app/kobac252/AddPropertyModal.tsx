@@ -1,42 +1,181 @@
 'use client'
 
 import { useState } from 'react'
-import { X, ClipboardPaste, Info, CheckCircle2 } from 'lucide-react'
+import { X, ClipboardPaste, CheckCircle2 } from 'lucide-react'
 
-// Simple helper to guess fields from pasted text
-function parseSmartPaste(text: string) {
-    const data: any = {}
+// ─── SMART PASTE PARSER ────────────────────────────────────────────────────
+// Handles real-world WhatsApp/Facebook Somali real estate listing text.
+function parseSmartPaste(text: string): { data: Record<string, string>; detected: string[] } {
+    const data: Record<string, string> = {}
+    const detected: string[] = []
     const t = text.toLowerCase()
 
-    // Price
-    const priceMatch = text.match(/\$\s*(\d+(?:,\d+)*)/)
-    if (priceMatch) data.price = priceMatch[1].replace(/,/g, '')
+    // ── PRICE ──────────────────────────────────────────────────────────────
+    // Handles: $500, 500$, 500 dollar, 500k, 1,000, $1,500/month, kirada: 400 $
+    const pricePatterns = [
+        /\$\s*([\d,]+)(?:k)?/i,          // $500 or $500k
+        /([\d,]+)\s*\$/i,                 // 500$
+        /([\d,]+)\s*k\b/i,                // 500k
+        /([\d,]+)\s*(?:dollar|usd)/i,    // 500 dollar
+        /qiimaha[:\s]+([\d,]+)/i,         // qiimaha: 500
+        /kirada[:\s]+([\d,]+)/i,          // kirada: 400
+        /price[:\s]+([\d,]+)/i,           // price: 500
+    ]
+    for (const pat of pricePatterns) {
+        const m = text.match(pat)
+        if (m) {
+            let price = m[1].replace(/,/g, '')
+            // Handle "k" multiplier
+            if (pat.source.includes('k\\b') && text.match(/[\d,]+\s*k\b/i)) price = String(Number(price) * 1000)
+            data.price = price
+            detected.push('Price')
+            break
+        }
+    }
 
-    // Rooms
-    const roomMatch = t.match(/(\d+)\s*qol/)
-    if (roomMatch) data.bedrooms = roomMatch[1]
+    // ── BEDROOMS ───────────────────────────────────────────────────────────
+    // Handles: 2qol, 2-Qol, 2 Qol, qol: 2, 3 bedrooms
+    const bedroomPatterns = [
+        /(\d+)[\s\-]*qol/i,
+        /(\d+)\s*(?:bed|bedroom|bedrooms)/i,
+        /qol[:\s]*(\d+)/i,
+    ]
+    for (const pat of bedroomPatterns) {
+        const m = t.match(pat)
+        if (m) { data.bedrooms = m[1]; detected.push('Bedrooms'); break }
+    }
 
-    // Bathrooms
-    const bathMatch = t.match(/(\d+)\s*suuli/)
-    if (bathMatch) data.bathrooms = bathMatch[1]
+    // ── BATHROOMS ──────────────────────────────────────────────────────────
+    // Handles: 2suuli, 2-Suli, 🚽2 -Suli, 2 wc, 2 bathrooms
+    const bathPatterns = [
+        /(\d+)[\s\-]*(?:suuli|suli|musqul|wc|xaas)/i,
+        /(?:suuli|suli|musqul|wc)[:\s]*(\d+)/i,
+        /(\d+)\s*(?:bath|bathroom|bathrooms)/i,
+    ]
+    for (const pat of bathPatterns) {
+        const m = t.match(pat)
+        if (m) { data.bathrooms = m[1]; detected.push('Bathrooms'); break }
+    }
 
-    // Type
-    if (t.includes('villa') || t.includes('villo')) data.propertyType = 'Villo'
-    if (t.includes('apartment') || t.includes('dabaq')) data.propertyType = 'Apartment'
-    if (t.includes('office')) data.propertyType = 'Office'
-    if (t.includes('shop') || t.includes('dukaan')) data.propertyType = 'Shop'
+    // ── PROPERTY TYPE ──────────────────────────────────────────────────────
+    // IMPORTANT: Check apartment/office/shop BEFORE villa/guri,
+    // because many listings say "GURI" (house) but specify "apartment" explicitly.
+    if (/(?:apartment|appartment|dabaq|flat)/i.test(t)) { data.propertyType = 'Apartment'; detected.push('Type: Apartment') }
+    else if (/(?:office|xafiis)/i.test(t)) { data.propertyType = 'Office'; detected.push('Type: Office') }
+    else if (/(?:shop|dukaan|dukaanka)/i.test(t)) { data.propertyType = 'Shop'; detected.push('Type: Shop') }
+    else if (/(?:warehouse|godob|makhsad)/i.test(t)) { data.propertyType = 'Warehouse'; detected.push('Type: Warehouse') }
+    else if (/(?:villo|villa|guri|guriga)/i.test(t)) { data.propertyType = 'Villo'; detected.push('Type: Villa') }
 
-    // Listing
-    if (t.includes('kiro')) data.listingType = 'rent'
-    if (t.includes('iib')) data.listingType = 'sale'
+    // ── LISTING TYPE ───────────────────────────────────────────────────────
+    // Use loose match (no strict \b) so "KIRO_Ah" and "KIRO-ah" both match
+    if (/(?:^|\s|#)iib(?:\s|_|$)/i.test(t) || /for sale/i.test(t)) { data.listingType = 'sale'; detected.push('Listing: Sale') }
+    else if (/(?:^|\s|#)kiro(?:\s|_|$)/i.test(t) || /(?:rent|ijaar|kirays)/i.test(t)) { data.listingType = 'rent'; detected.push('Listing: Rent') }
 
-    return data
+    // ── DISTRICT ───────────────────────────────────────────────────────────
+    // Strategy: first try to extract from after Somali keyword "DAGMADA" or "district",
+    // then fall back to scanning the full text for any district name.
+    const districtMap: [RegExp, string][] = [
+        [/hodan/i, 'Hodan'],
+        [/hawl.?wadaag/i, 'Hawl-Wadaag'],
+        [/wardhiigley/i, 'Wardhiigley'],
+        [/waberi/i, 'Waberi'],
+        [/hamar.?weyne/i, 'Hamar Weyne'],
+        [/hamar.?jajab/i, 'Hamar Jajab'],
+        [/karan/i, 'Karan'],
+        [/yaqshid/i, 'Yaqshid'],
+        [/dharkenley/i, 'Dharkenley'],
+        [/wadajir/i, 'Wadajir'],
+        [/heliwa/i, 'Heliwa'],
+        [/daynile/i, 'Daynile'],
+        [/kahda/i, 'Kahda'],
+        [/darussalam/i, 'Darussalam'],
+        [/garasebaley/i, 'Garasebaley'],
+        [/gubadley/i, 'Gubadley'],
+    ]
+
+    // Step 1: look for "DAGMADA : HODAN" pattern – most reliable
+    const dagmadaMatch = text.match(/dagmad[ao]\s*[:\-]?\s*#?\s*(\w[\w\s]*?)(?=\s*[♦️\n$\d]|$)/i)
+    let districtSearchText = dagmadaMatch ? dagmadaMatch[1].trim() : t
+
+    for (const [pat, name] of districtMap) {
+        if (pat.test(districtSearchText)) {
+            data.district = name
+            detected.push(`District: ${name}`)
+            break
+        }
+    }
+
+    // ── LOCATION / LANDMARK ────────────────────────────────────────────────
+    // Recognizes Somali neighborhood keywords: EERIYADA, XARUNTA, near, dhaw, xagga, goob
+    const locationMatch = text.match(/(?:eeriyada|xarunta|goobta|near|dhaw|xagga|dhinaca|fagaara|goob|location)\s*[:\-]?\s*#?([\w\s,]+?)(?=[\n♦️$\d]|$)/i)
+    if (locationMatch) {
+        const loc = locationMatch[1].trim().replace(/[#_*]+/g, '').trim()
+        if (loc.length > 1 && loc.length < 80) { data.location = loc; detected.push(`Location: ${loc}`) }
+    }
+
+    // ── MEASUREMENT ────────────────────────────────────────────────────────
+    const measureMatch = text.match(/(\d+)\s*[xX×]\s*(\d+)/)
+    if (measureMatch) {
+        data.length = measureMatch[1]
+        data.width = measureMatch[2]
+        detected.push('Measurement')
+    }
+
+    // ── SHARCIGA ───────────────────────────────────────────────────────────
+    if (/siyaad.?barre/i.test(t)) { data.sharciga = 'Siyaad Barre'; detected.push('Doc: Siyaad Barre') }
+    else if (/koofi/i.test(t)) { data.sharciga = 'Koofi'; detected.push('Doc: Koofi') }
+
+    // ── DEPOSIT ────────────────────────────────────────────────────────────
+    // Detects: "DEPOSET : BIL $" (1 month), "deposit: $200", "deposit: 2 bil"
+    let depositText = ''
+    const depositSection = text.match(/depos[ei]t?\s*[:\-]?\s*(.{1,30})/i)
+    if (depositSection) {
+        const raw = depositSection[1].trim()
+        const amountMatch = raw.match(/\$?\s*([\d,]+)\s*\$?/)
+        const bilMatch = raw.match(/(\d+)?\s*bil/i)
+        if (amountMatch) {
+            depositText = `Deposit-ka waa $${amountMatch[1].replace(/,/g, '')}.`
+            detected.push('Deposit')
+        } else if (bilMatch) {
+            const months = bilMatch[1] ? bilMatch[1] : '1'
+            depositText = `Deposit-ka waa ${months} bil kirada ah.`
+            detected.push('Deposit')
+        }
+    }
+
+    // ── DESCRIPTION (auto-generated marketing copy) ────────────────────────
+    const slogans = [
+        'Find your next home in Mogadishu, without the walk.',
+        'Your dream home is just a click away.',
+        'The bridge to your next home.',
+        'Mogadishu Rents. Simplified.',
+        'Guri raadintu hadda waa Taabasho kaliya.',
+        'Guri kasta iyo goob kasta.',
+        'Kireyso adoo gurigaaga jooga.',
+        'Guri raadiye: Guri kasta, goob kasta, hal meel ka raadso.',
+    ]
+    const slogan = slogans[Math.floor(Math.random() * slogans.length)]
+
+    const propType = data.propertyType || 'Hoy'
+    const district = data.district ? `${data.district}` : 'Muqdisho'
+    const location = data.location ? `, gaar ahaan ${data.location}` : ''
+    const beds = data.bedrooms ? `${data.bedrooms} qol` : ''
+    const baths = data.bathrooms ? `${data.bathrooms} musqul` : ''
+    const roomList = [beds, baths, 'jiko'].filter(Boolean).join(' iyo ')
+
+    data.description =
+        `Kuso dhawow Kobac Property! Waxaan kuu heynaa ${propType} ku yaala ${district}${location}. Wuxuuna ka koobanyahay ${roomList}.${depositText ? ' ' + depositText : ''} Wixii faah faahin ah nagala soo xariir: 0610251014
+
+🟢 Kobac Property — ${slogan}`
+
+    return { data, detected }
 }
 
 export default function AddPropertyModal({ onClose, password }: { onClose: () => void, password: string }) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
     const [pasteText, setPasteText] = useState('')
+    const [detectedFields, setDetectedFields] = useState<string[]>([])
 
     // Form fields
     const [formData, setFormData] = useState({
@@ -60,8 +199,14 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
         const text = e.target.value
         setPasteText(text)
 
-        const parsed = parseSmartPaste(text)
-        setFormData(prev => ({ ...prev, ...parsed }))
+        if (!text.trim()) {
+            setDetectedFields([])
+            return
+        }
+
+        const { data, detected } = parseSmartPaste(text)
+        setFormData(prev => ({ ...prev, ...data }))
+        setDetectedFields(detected)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -159,19 +304,36 @@ export default function AddPropertyModal({ onClose, password }: { onClose: () =>
                                 <ClipboardPaste className="w-4 h-4" />
                             </div>
                             <h3 className="font-bold text-gray-900">Smart Paste</h3>
-                            <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>
+                            <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">AI</span>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">Paste property details from WhatsApp or Facebook to auto-fill the form instantly!</p>
+                        <p className="text-sm text-gray-600 mb-3">Paste any property text from WhatsApp or Facebook — fields auto-fill instantly!</p>
                         <textarea
                             value={pasteText}
                             onChange={handlePaste}
-                            placeholder="Paste text here (e.g. #GURI KIRO_AH #DABAQ 2qol...)"
-                            className="w-full border border-gray-200 rounded-xl p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            placeholder={`Paste listing text here, e.g:\n#GURI KIRO_AH\n#HODAN 3qol 2suuli\nQiimaha: $500/Month`}
+                            className="w-full border border-gray-200 rounded-xl p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono"
                         />
-                        <div className="flex items-center gap-1.5 mt-2 text-blue-600 text-xs font-medium">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            System automatically detects: Rooms, Price, District, Location & Type
-                        </div>
+
+                        {/* Detected Fields Badges */}
+                        {detectedFields.length > 0 ? (
+                            <div className="mt-3">
+                                <p className="text-xs font-semibold text-green-700 mb-1.5">✅ Auto-filled {detectedFields.length} field{detectedFields.length > 1 ? 's' : ''}:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {detectedFields.map(field => (
+                                        <span key={field} className="bg-green-100 text-green-800 text-[11px] font-medium px-2 py-0.5 rounded-full">
+                                            {field}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : pasteText.trim() ? (
+                            <p className="mt-2 text-xs text-amber-600 font-medium">⚠️ Nothing recognized — check the form and fill manually.</p>
+                        ) : (
+                            <div className="flex items-center gap-1.5 mt-2 text-blue-600 text-xs font-medium">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                Detects: Price · Rooms · Bathrooms · District · Type · Listing · Measurement
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
