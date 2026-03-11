@@ -28,18 +28,41 @@ export async function generateMetadata(
 ): Promise<Metadata> {
     const slug = params.slug
 
-    // Extract ID from the end of the URL (e.g. apartment-kiro-ah-12345 -> 12345)
-    // We split by '-' and take the last part.
     const parts = slug.split('-')
-    const id = parts[parts.length - 1]
-
-    if (!id || id.length < 10) {
-        return { title: 'Property Not Found | Kobac Property' }
-    }
+    const lastSegment = parts[parts.length - 1]
+    const secondLast = parts[parts.length - 2]
 
     try {
         await connectToDatabase()
-        const raw = await PropertyModel.findById(id).lean().exec()
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let raw: any = null
+
+        if (secondLast === 'KOB') {
+            // New-style sequential ID: e.g. "apartment-KOB-20" → lookup by position
+            const seqNum = parseInt(lastSegment, 10)
+            if (!isNaN(seqNum) && seqNum > 0) {
+                const total = await PropertyModel.countDocuments()
+                const skipAmt = total - seqNum
+                if (skipAmt >= 0) {
+                    const results = await PropertyModel
+                        .find({})
+                        .sort({ listedAt: -1, createdAt: -1 })
+                        .skip(skipAmt)
+                        .limit(1)
+                        .lean()
+                        .exec()
+                    raw = results[0] || null
+                }
+            }
+        } else {
+            // Legacy: full MongoDB ObjectId at the end of slug
+            if (!lastSegment || lastSegment.length < 10) {
+                return { title: 'Property Not Found | Kobac Property' }
+            }
+            raw = await PropertyModel.findById(lastSegment).lean().exec()
+        }
+
         if (!raw) return { title: 'Property Not Found | Kobac Property' }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
