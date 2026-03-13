@@ -34,19 +34,14 @@ export async function GET(request: NextRequest) {
             .lean()
             .exec()
 
-        // Give each property a short sequential display ID.
-        // We sort newest-first, so we count down from total so that the
-        // oldest property always keeps ID 1 and newer ones get higher numbers.
-        const total = raw.length
-
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = raw.map((p: any, index: number) => {
+        const data = raw.map((p: any) => {
             const agentPhone = p.agent?.phone || p.agentPhone || '061 025 1014';
             const isDefaultAgent = agentPhone.replace(/\s+/g, '') === '0610251014' || agentPhone === '+252610251014';
             const agentName = isDefaultAgent ? 'Kobac Property' : (p.agent?.name || p.agentName || 'Kobac Property');
 
             return {
-                id: String(total - index),         // short numeric: newest = total, oldest = 1
+                id: p.kobacId != null ? String(p.kobacId) : '',  // stable stored ID — never shifts
                 _mongoId: p._id?.toString() || '', // internal full ObjectId kept for API link-by-id
                 title: p.title || p.name || 'Untitled',
                 type: p.type || p.propertyType || 'Apartment',

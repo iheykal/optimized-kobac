@@ -39,21 +39,10 @@ export async function generateMetadata(
         let raw: any = null
 
         if (secondLast === 'KOB') {
-            // New-style sequential ID: e.g. "apartment-KOB-20" → lookup by position
-            const seqNum = parseInt(lastSegment, 10)
-            if (!isNaN(seqNum) && seqNum > 0) {
-                const total = await PropertyModel.countDocuments()
-                const skipAmt = total - seqNum
-                if (skipAmt >= 0) {
-                    const results = await PropertyModel
-                        .find({})
-                        .sort({ listedAt: -1, createdAt: -1 })
-                        .skip(skipAmt)
-                        .limit(1)
-                        .lean()
-                        .exec()
-                    raw = results[0] || null
-                }
+            // Stable kobacId lookup — this field is permanently stored on the document
+            const kobacId = parseInt(lastSegment, 10)
+            if (!isNaN(kobacId) && kobacId > 0) {
+                raw = await PropertyModel.findOne({ kobacId }).lean().exec()
             }
         } else {
             // Legacy: full MongoDB ObjectId at the end of slug
@@ -111,21 +100,10 @@ export default async function PropertyPage({ params }: Props) {
     let raw: any = null
 
     if (secondLast === 'KOB') {
-        // New-style sequential ID: slug ends with "KOB-20" → lookup by position
-        const seqNum = parseInt(lastSegment, 10)
-        if (!isNaN(seqNum) && seqNum > 0) {
-            const total = await PropertyModel.countDocuments()
-            const skipAmt = total - seqNum
-            if (skipAmt >= 0) {
-                const results = await PropertyModel
-                    .find({})
-                    .sort({ listedAt: -1, createdAt: -1 })
-                    .skip(skipAmt)
-                    .limit(1)
-                    .lean()
-                    .exec()
-                raw = results[0] || null
-            }
+        // Stable kobacId lookup — this field is permanently stored on the document
+        const kobacId = parseInt(lastSegment, 10)
+        if (!isNaN(kobacId) && kobacId > 0) {
+            raw = await PropertyModel.findOne({ kobacId }).lean().exec()
         }
     } else {
         // Legacy: full MongoDB ObjectId at the end of slug

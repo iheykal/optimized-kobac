@@ -20,6 +20,7 @@ export interface IProperty extends Document {
     description: string
     listedAt: Date
     isActive: boolean
+    kobacId?: number  // stable sequential ID — never changes after first assigned
 }
 
 const PropertySchema = new Schema<IProperty>(
@@ -35,6 +36,7 @@ const PropertySchema = new Schema<IProperty>(
 // Index for fast sorting by newest first
 PropertySchema.index({ listedAt: -1, createdAt: -1 })
 PropertySchema.index({ district: 1 }) // For faster filtering by location if added later
+PropertySchema.index({ kobacId: 1 }, { unique: true, sparse: true }) // Stable KOB-XX lookup
 
 const PropertyModel: Model<IProperty> =
     models.Property || mongoose.model<IProperty>('Property', PropertySchema)

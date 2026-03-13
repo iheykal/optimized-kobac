@@ -120,10 +120,19 @@ export async function POST(request: NextRequest) {
             listedAt: new Date()
         }
 
-        // 5. Save to MongoDB
-        const newProperty = await PropertyModel.create(propertyData)
+        // 5. Assign next stable kobacId
+        const maxDoc = await PropertyModel
+            .findOne({ kobacId: { $exists: true } })
+            .sort({ kobacId: -1 })
+            .select('kobacId')
+            .lean()
+            .exec() as any
+        const nextKobacId = maxDoc?.kobacId ? maxDoc.kobacId + 1 : 1
 
-        return NextResponse.json({ success: true, propertyId: newProperty._id })
+        // 6. Save to MongoDB
+        const newProperty = await PropertyModel.create({ ...propertyData, kobacId: nextKobacId })
+
+        return NextResponse.json({ success: true, propertyId: newProperty._id, kobacId: nextKobacId })
 
     } catch (error: any) {
         console.error('[Admin Upload API Error]', error)

@@ -26,7 +26,12 @@ export default function AgentCard({ agent }: { agent: Agent }) {
                     <div>
                         <div className="flex items-center gap-1">
                             <span className="font-bold text-gray-900 text-sm">{agent.name}</span>
-                            {agent.verified && <span className="text-blue-500 text-sm">✓</span>}
+                            {agent.verified && (
+                                <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" aria-label="Verified">
+                                    <circle cx="12" cy="12" r="12" fill="#1877F2" />
+                                    <path d="M6.5 12.5l3.5 3.5 7.5-8" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                </svg>
+                            )}
                         </div>
                         <p className="text-gray-500 text-xs">{agent.location}</p>
                     </div>
